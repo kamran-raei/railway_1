@@ -1,19 +1,31 @@
-ARG NODE_VERSION=24.13.0-slim
+FROM nginx:alpine
 
-FROM node:${NODE_VERSION} AS dependencies
+RUN rm -rf /docker-entrypoint.d/* && \
+    printf 'events {}\n\
+http {\n\
+    server {\n\
+        listen 80;\n\
+\n\
+        location / {\n\
+            proxy_pass https://ray.darkns.ir;\n\
+\n\
+            proxy_http_version 1.1;\n\
+            proxy_set_header Upgrade $http_upgrade;\n\
+            proxy_set_header Connection "upgrade";\n\
+\n\
+            proxy_set_header Host ray.darkns.ir;\n\
+            proxy_set_header X-Real-IP $remote_addr;\n\
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
+            proxy_set_header X-Forwarded-Proto https;\n\
+\n\
+            proxy_ssl_server_name on;\n\
+            proxy_ssl_name ray.darkns.ir;\n\
+            proxy_ssl_verify off;\n\
+\n\
+            proxy_read_timeout 86400;\n\
+            proxy_send_timeout 86400;\n\
+        }\n\
+    }\n\
+}\n' > /etc/nginx/nginx.conf
 
-WORKDIR /app
-
-# install only what we need
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
-# copy app
-COPY server.js .
-
-ENV NODE_TLS_REJECT_UNAUTHORIZED=0
-ENV HOST=0.0.0.0
-ENV PORT=80
-
-EXPOSE 80
-
-CMD ["node", "server.js"]
+CMD ["nginx", "-g", "daemon off;"]
